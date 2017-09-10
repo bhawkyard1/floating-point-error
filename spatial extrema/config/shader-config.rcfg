@@ -1,0 +1,5 @@
+#Put shaders in this file. All except vertex and frag are optional.
+#<name> <vertex-shader> <fragment-shader> <geo-shader> <tessctrl-shader> <tesseval-shader>
+deferred_pass vert_deferred_dataPass frag_deferred_data
+deferred_light vert_util_screen frag_deferred_light
+utility_texCopy vert_util_screen frag_util_texCopy
