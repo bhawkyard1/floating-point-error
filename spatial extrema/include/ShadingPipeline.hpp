@@ -8,7 +8,7 @@
 
 struct ShadingInput
 {
-	ShadingInput( const MemRef< Framebuffer > _input ) :
+	ShadingInput( MemRef< Framebuffer > _input ) :
 		m_input( _input )
 	{
 	}

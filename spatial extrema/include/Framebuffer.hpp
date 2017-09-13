@@ -22,6 +22,15 @@ class Framebuffer
 {
 public:
 	Framebuffer() = default;
+	Framebuffer( const Framebuffer &_rhs ) = default;
+	/*{
+		std::cout << "copy ctor\n";
+	}*/
+	Framebuffer( Framebuffer &&_rhs ) = default;
+	/*{
+		std::cout << "move ctor\n";
+	}*/
+
 	/// @brief Destroys the framebuffer and all associated textures.
 	~Framebuffer();
 

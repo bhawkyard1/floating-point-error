@@ -36,7 +36,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -88,8 +88,8 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	//Set up deferred shading pipeline.
 	Framebuffer gBuffer;
 	gBuffer.initialise(
-				static_cast<int>(m_dimensions.m_x),
-				static_cast<int>(m_dimensions.m_y)
+				m_dimensions.m_x,
+				m_dimensions.m_y
 				);
 	gBuffer.addTexture( "diffuse", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT0 );
 	gBuffer.addTexture( "position", GL_RGBA, GL_RGBA32F, GL_COLOR_ATTACHMENT1 );
@@ -105,16 +105,24 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	Framebuffer compositeBuffer;
 	compositeBuffer.initialise(
-				static_cast<int>(m_dimensions.m_x),
-				static_cast<int>(m_dimensions.m_y)
+				m_dimensions.m_x,
+				m_dimensions.m_y
 				);
 	compositeBuffer.addTexture( "solid", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT0 );
 	compositeBuffer.addTexture( "nonsolid", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT1 );
-	if(!gBuffer.checkComplete())
+	compositeBuffer.addDepthAttachment( "depth" );
+	if(!compositeBuffer.checkComplete())
 		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
 	compositeBuffer.unbind();
 
+	dataInputRef->bind();
+	std::cout << "Pre complete " << dataInputRef->checkComplete() << '\n';
+	std::cout << "eb3 " << glGetError() << '\n';
+	dataInputRef->bind();
+	std::cout << "eb4 " << glGetError() << '\n';
+
 	m_framebuffers.push_back( compositeBuffer );
+	std::cout << "Post complete " << dataInputRef->checkComplete() << '\n';
 	MemRef< Framebuffer > compositeRef ( m_framebuffers.backID() );
 
 	//The stages in our deferred pipeline
@@ -127,6 +135,12 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	a.m_links.push_back( {"position", "u_position"} );
 	a.m_links.push_back( {"normal", "u_normal"} );
 	a.m_links.push_back( {"linearDepth", "u_linearDepth"} );
+
+	std::cout << "  diagnosting &v = " << &m_framebuffers[0] << ", &p = " << a.m_input.get() << '\n';
+	a.m_input->bind();
+	std::cout << "eb5 " << glGetError() << '\n';
+	compositeRef->bind();
+	std::cout << "eb6 " << glGetError() << '\n';
 
 	lightingInputs.push_back( a );
 
@@ -155,9 +169,6 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	};
 	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
 	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
-
-	std::cout << "Error " << glGetError() << '\n';
-	Utility::errorExit("1");
 }
 
 void Renderer::createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo, const std::string _tessctrl, const std::string _tesseval)
@@ -261,7 +272,6 @@ void Renderer::render()
 {
 	for(auto &i : m_pipelines)
 		i.second.execute();
-
 	/*glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 	clear();*/
 
@@ -271,12 +281,12 @@ void Renderer::render()
 
 void Renderer::shadingPipeline(const std::string &_pipe)
 {
+	std::cout << "Binding " << _pipe << " for input.\n";
 	m_pipelines.at( _pipe ).bindInput();
 }
 
 void Renderer::clear()
 {
-	std::cout << "Clear\n";
 	glClearColor(1.0f,0.0f,0.0f,0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }

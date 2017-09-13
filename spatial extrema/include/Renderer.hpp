@@ -76,7 +76,6 @@ private:
 	ngl::Vec2 m_dimensions;
 
 	//Framebuffers
-	Framebuffer m_mainBuffer;
 	Slotmap< Framebuffer > m_framebuffers;
 
 	//Shading pipelines.

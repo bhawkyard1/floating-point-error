@@ -27,6 +27,8 @@ public:
 		m_ref.m_slot = _ref;
 	}
 
+	MemRef( const MemRef<T> &_rhs ) = default;
+
 	T * get()
 	{
 		switch( m_type )

@@ -1,10 +1,3 @@
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// This file contains work developed as a part of
-// my Year 2 Computing for Animation 1 project, with
-// some large alterations to functionality. It
-// may not be appropriate to consider it.
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 #include <ciso646>
 
 #include "slotmap.hpp"
