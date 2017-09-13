@@ -22,14 +22,14 @@ class Framebuffer
 {
 public:
 	Framebuffer() = default;
-	Framebuffer( const Framebuffer &_rhs ) = default;
-	/*{
-		std::cout << "copy ctor\n";
-	}*/
+
+	//Trust me on this, if this is set to default I get gl errors when I try to bind,
+	//but only if the given framebuffer has been pushed into a vector, then another
+	//framebuffer after.
+	//
+	//I'm as confused as you.
+	Framebuffer( const Framebuffer &_rhs ) {}
 	Framebuffer( Framebuffer &&_rhs ) = default;
-	/*{
-		std::cout << "move ctor\n";
-	}*/
 
 	/// @brief Destroys the framebuffer and all associated textures.
 	~Framebuffer();

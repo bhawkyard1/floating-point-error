@@ -53,10 +53,7 @@ void ShadingPipeline::execute()
 
 void ShadingPipeline::bindInput( )
 {
-	std::cout << "Pre bind " << glGetError() << '\n';
 	m_inputBuffer->bind();
-	std::cout << "Post bind " << glGetError() << '\n';
-	Utility::errorExit("1");
 	m_inputBuffer->activeColourAttachments();
 }
 

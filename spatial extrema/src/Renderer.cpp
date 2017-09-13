@@ -115,14 +115,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
 	compositeBuffer.unbind();
 
-	dataInputRef->bind();
-	std::cout << "Pre complete " << dataInputRef->checkComplete() << '\n';
-	std::cout << "eb3 " << glGetError() << '\n';
-	dataInputRef->bind();
-	std::cout << "eb4 " << glGetError() << '\n';
-
 	m_framebuffers.push_back( compositeBuffer );
-	std::cout << "Post complete " << dataInputRef->checkComplete() << '\n';
 	MemRef< Framebuffer > compositeRef ( m_framebuffers.backID() );
 
 	//The stages in our deferred pipeline
@@ -135,12 +128,6 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	a.m_links.push_back( {"position", "u_position"} );
 	a.m_links.push_back( {"normal", "u_normal"} );
 	a.m_links.push_back( {"linearDepth", "u_linearDepth"} );
-
-	std::cout << "  diagnosting &v = " << &m_framebuffers[0] << ", &p = " << a.m_input.get() << '\n';
-	a.m_input->bind();
-	std::cout << "eb5 " << glGetError() << '\n';
-	compositeRef->bind();
-	std::cout << "eb6 " << glGetError() << '\n';
 
 	lightingInputs.push_back( a );
 
@@ -169,6 +156,37 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	};
 	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
 	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
+
+	//Wtf testing
+	/*std::cout << "Clearing..." << glGetError() << '\n';
+	std::vector<Framebuffer> testslot;
+
+	Framebuffer tBuffer;
+	tBuffer.initialise(
+				m_dimensions.m_x,
+				m_dimensions.m_y
+				);
+	tBuffer.addTexture( "diffuse", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT0 );
+	tBuffer.addTexture( "position", GL_RGBA, GL_RGBA32F, GL_COLOR_ATTACHMENT1 );
+	tBuffer.addTexture( "normal", GL_RGBA, GL_RGBA16F, GL_COLOR_ATTACHMENT2 );
+	tBuffer.addTexture( "linearDepth", GL_RED, GL_R16F, GL_COLOR_ATTACHMENT3 );
+	tBuffer.addDepthAttachment( "depth" );
+	if(!tBuffer.checkComplete())
+		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
+	tBuffer.unbind();
+
+	std::cout << "e0 " << glGetError() << "\n";
+
+	testslot.push_back(tBuffer);
+	Framebuffer x;
+	x.initialise(m_dimensions.m_x, m_dimensions.m_y);
+	testslot.push_back(x);
+
+	tBuffer.bind();
+
+	std::cout << "e1 " << glGetError() << "\n";
+
+	Utility::errorExit("1");*/
 }
 
 void Renderer::createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo, const std::string _tessctrl, const std::string _tesseval)
