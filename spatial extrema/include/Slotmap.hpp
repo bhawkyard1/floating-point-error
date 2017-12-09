@@ -104,7 +104,7 @@ public:
 			ret = id;
 		}
 
-		m_objects.push_back(_obj);
+		m_objects.push_back( _obj );
 
 		return ret;
 	}

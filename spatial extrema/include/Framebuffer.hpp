@@ -22,22 +22,19 @@ class Framebuffer
 {
 public:
 	Framebuffer() = default;
-
-	//Trust me on this, if this is set to default I get gl errors when I try to bind,
-	//but only if the given framebuffer has been pushed into a vector, then another
-	//framebuffer after.
-	//
-	//I'm as confused as you.
-	Framebuffer( const Framebuffer &_rhs ) {}
-	Framebuffer( Framebuffer &&_rhs ) = default;
+	Framebuffer( const Framebuffer &_rhs ) = default;
+	~Framebuffer() = default;
 
 	/// @brief Destroys the framebuffer and all associated textures.
-	~Framebuffer();
+	void cleanup();
+
+	//Todo delete
+	void debugPrint(const std::string &_title);
 
 	/// @brief Initialises the framebuffer to a given width and height. All textures added later will conform to these dimensions.
 	/// @param [in] _w, The width of the framebuffer. All texture targets will conform to this.
 	/// @param [in] _h, The height of the framebuffer. All texture targets will conform to this.
-	void initialise(int _w, int _h);
+	void init(int _w, int _h);
 
 	/// @brief Tells opengl to use all of the available colour attachments.
 	void activeColourAttachments();
@@ -69,7 +66,7 @@ public:
 	void addDepthAttachment(const std::string &_identifier);
 
 	/// @brief Binds the frambuffer for use (read and write).
-	void bind();
+	void bind(GLenum type = GL_FRAMEBUFFER);
 
 	/// @brief Binds a texture for use in-shader.
 	/// @param [in] _shaderID, The GLint id of the shader.
@@ -103,13 +100,13 @@ private:
 	/// @param [in] _format, The simple format of the texture, such as GL_RGB
 	/// @param [in] _internalFormat, The internal format of the texture, such as GL_RGB8.
 	/// @param [in] _type, The data type of the texture, should normally be GL_FLOAT.
-	GLuint genTexture(int _width, int _height, GLint _format, GLint _internalFormat, GLint _type);
+	GLuint genTexture(int _width, int _height, GLenum _format, GLint _internalFormat, GLenum _type);
 
 	/// @brief Used to track the maximum colour attachments available on the current machine.
 	GLenum m_maxColourTarget;
 
 	/// @brief Used to track the active colour attachments.
-	std::vector<GLenum> m_colorAttachments;
+	std::vector<GLenum> m_colourAttachments;
 
 	/// @brief The framebuffer object. This class acts as its wrapper.
 	GLuint m_framebuffer;

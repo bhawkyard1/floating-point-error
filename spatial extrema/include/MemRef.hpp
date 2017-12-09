@@ -12,19 +12,19 @@ public:
 	MemRef()
 	{
 		m_type = REF_NONE;
-		m_ref.m_raw = nullptr;
+		m_raw = nullptr;
 	}
 
 	MemRef( T * _ref )
 	{
 		m_type = REF_RAW;
-		m_ref.m_raw = _ref;
+		m_raw = _ref;
 	}
 
 	MemRef( SlotID<T> _ref )
 	{
 		m_type = REF_SLOT;
-		m_ref.m_slot = _ref;
+		m_slot = _ref;
 	}
 
 	MemRef( const MemRef<T> &_rhs ) = default;
@@ -34,10 +34,10 @@ public:
 		switch( m_type )
 		{
 		case REF_RAW:
-			return m_ref.m_raw;
+			return m_raw;
 			break;
 		case REF_SLOT:
-			return m_ref.m_slot.get();
+			return m_slot.get();
 			break;
 		}
 		return nullptr;
@@ -48,15 +48,15 @@ public:
 		return get();
 	}
 
-	T* operator-> ()
+	T * operator-> ()
 	{
 		switch( m_type )
 		{
 		case REF_RAW:
-			return m_ref.m_raw;
+			return m_raw;
 			break;
 		case REF_SLOT:
-			return m_ref.m_slot.get();
+			return m_slot.get();
 			break;
 		case REF_NONE:
 			return nullptr;
@@ -68,7 +68,9 @@ public:
 	bool isNull() const {return m_type == REF_NONE;}
 private:
 	RefType m_type;
-	union MemRefStorage {
+	T * m_raw;
+	SlotID< T > m_slot;
+	/*union MemRefStorage {
 		MemRefStorage() :
 			m_raw( nullptr ),
 			m_slot()
@@ -76,7 +78,7 @@ private:
 
 		T * m_raw;
 		SlotID< T > m_slot;
-	} m_ref;
+	} m_ref;*/
 };
 
 #endif

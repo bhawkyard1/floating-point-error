@@ -133,6 +133,7 @@ T Sqr(T _x)
 }
 
 void errorExit( const std::string &_msg );
+void warning( const std::string &_msg );
 
 std::istream& getlineSafe(std::istream& is, std::string& t);
 

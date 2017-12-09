@@ -21,7 +21,7 @@ public:
 	void update( const float _dt );
 	bool done() const {return false;}
 
-	SlotID<PhysEnt> addEnt();
+	MemRef<PhysEnt> addEnt();
 private:
 	Renderer m_renderer;
 	Camera m_cam;

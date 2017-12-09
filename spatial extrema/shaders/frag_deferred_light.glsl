@@ -1,4 +1,4 @@
-#version 430 core
+#version 410 core
 
 #define shadowbuffer 0
 #define NUM_CASCADES 3
@@ -78,8 +78,6 @@ vec3 basicLight(vec4 fragPos, vec3 fragNormal, int lightIndex)
 
 void main()
 {
-    fragColour = vec4(1.0,1.0,0.0,1.0);
-    return;
   fragColour = vec4(texture(u_diffuse, UV));
   vec4 fragPos = texture(u_position, UV);
   vec3 fragNorm = texture(u_normal, UV).xyz;
@@ -89,6 +87,8 @@ void main()
   if(fragColour.a == 0.0)
     discard;
 #endif
+  return;
+  
   float lightmul = clamp(dot(fragNorm, u_lightDir), 0.0, 1.0);
   float moonmul = clamp(dot(fragNorm, -u_lightDir), 0.0, 1.0);
   float mul = lightmul + moonmul;
@@ -145,7 +145,7 @@ void main()
   fragColour.xyz = vec3(texture(u_shadowDepths[0], UV).r);
 #endif
 
-  //fragColour.xyz = vec3(fragPos.xyz) / 16.0;
+  fragColour.xyz = vec3(fragPos.xyz) / 16.0;
 
-  fragColour.a = 1.0;
+  //fragColour = vec4(1.0,1.0,1.0,1.0);
 }

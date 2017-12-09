@@ -6,13 +6,14 @@
 
 Camera::Camera( MemRef<PhysEnt> _base ) :
 	m_base( _base )
-{}
+{
+
+}
 
 void Camera::calculate()
 {
 		calculateV();
 		calculateP();
-
     m_VP = m_V * m_P;
 }
 
@@ -26,10 +27,16 @@ void Camera::calculateV()
 		for(auto &i : m_worldTransformationStack)
 				m_worldTransformation *= i;
 
+		ngl::Vec3 up = ngl::Vec3( 0.0f, 1.0f, 0.0f );
+		PhysEnt b =* m_base.get();
+		std::cout << b.back().m_x << '\n';
+		if( !m_base.isNull() )
+			up = m_base->up();
+
 		m_V = ngl::lookAt(
 								m_initPos,
 								m_initPivot,
-								m_base->up()
+								up
 								);
 
 		/*for(auto i = m_transformationStack.rbegin(); i < m_transformationStack.rend(); ++i)

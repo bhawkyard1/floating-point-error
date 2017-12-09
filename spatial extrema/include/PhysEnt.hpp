@@ -9,6 +9,8 @@ class PhysEnt
 {
 public:
 	PhysEnt() = default;
+	PhysEnt( const PhysEnt &_rhs ) = default;
+	~PhysEnt() = default;
 
 	void setPos( const ngl::Vec3 &_pos ) {m_pos = _pos;}
 	void incrPos( const ngl::Vec3 &_pos) {m_pos += _pos;}

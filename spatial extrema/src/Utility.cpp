@@ -123,6 +123,11 @@ void errorExit(const std::string &_msg)
 	exit( EXIT_FAILURE );
 }
 
+void warning( const std::string &_msg )
+{
+	std::cout << _msg << '\n';
+}
+
 std::istream& getlineSafe(std::istream& is, std::string& t)
 {
 	t.clear();

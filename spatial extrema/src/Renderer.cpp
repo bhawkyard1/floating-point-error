@@ -1,5 +1,6 @@
 #include <ngl/NGLInit.h>
 #include <ngl/ShaderLib.h>
+#include <ngl/NGLStream.h>
 
 #include "Renderer.hpp"
 #include "File.hpp"
@@ -8,6 +9,9 @@
 #ifdef _WIN32
 #include <ciso646>
 #endif
+
+//TODO: delete
+#include <NGL/NGLStream.h>
 
 AssetStore Renderer::s_assetStore;
 
@@ -36,7 +40,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -49,8 +53,10 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	ngl::NGLInit::instance();
 
+	//Enables and disabled.
 	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-	glDisable( GL_DEPTH_TEST );
+	glEnable( GL_DEPTH_TEST );
+	glDepthFunc( GL_LESS );
 
 	//Load shaders
 	std::vector< std::string > shaders = File::getLinesFromFile( "config/shader-config.rcfg" );
@@ -85,16 +91,32 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		else if( data[0] == "TEXTURE" ) s_assetStore.loadTexture( data[2], data[1] );
 	}
 
+	std::vector<ngl::Vec4> screenQuadPoints = {
+		ngl::Vec4( -1.0f, -1.0f, 0.0f, 1.0f ),
+		ngl::Vec4( 1.0f, -1.0f, 0.0f, 1.0f ),
+		ngl::Vec4( -1.0f, 1.0f, 0.0f, 1.0f ),
+		ngl::Vec4( 1.0f, 1.0f, 0.0f, 1.0f )
+	};
+	std::vector<ngl::Vec2> screenQuadUVs = {
+		ngl::Vec2( 0.0f, 0.0f ),
+		ngl::Vec2( 1.0f, 0.0f ),
+		ngl::Vec2( 0.0f, 1.0f ),
+		ngl::Vec2( 1.0f, 1.0f )
+	};
+	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
+	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
+
 	//Set up deferred shading pipeline.
+	//Framebuffers
 	Framebuffer gBuffer;
-	gBuffer.initialise(
+	gBuffer.init(
 				m_dimensions.m_x,
 				m_dimensions.m_y
 				);
 	gBuffer.addTexture( "diffuse", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT0 );
-	gBuffer.addTexture( "position", GL_RGBA, GL_RGBA32F, GL_COLOR_ATTACHMENT1 );
+	gBuffer.addTexture( "position", GL_RGBA, GL_RGBA16F, GL_COLOR_ATTACHMENT1 );
 	gBuffer.addTexture( "normal", GL_RGBA, GL_RGBA16F, GL_COLOR_ATTACHMENT2 );
-	gBuffer.addTexture( "linearDepth", GL_RED, GL_R16F, GL_COLOR_ATTACHMENT3 );
+	gBuffer.addTexture( "linearDepth", GL_RED, GL_RED, GL_COLOR_ATTACHMENT3 );
 	gBuffer.addDepthAttachment( "depth" );
 	if(!gBuffer.checkComplete())
 		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
@@ -104,7 +126,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	MemRef< Framebuffer > dataInputRef ( m_framebuffers.backID() );
 
 	Framebuffer compositeBuffer;
-	compositeBuffer.initialise(
+	compositeBuffer.init(
 				m_dimensions.m_x,
 				m_dimensions.m_y
 				);
@@ -142,51 +164,8 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	m_pipelines.insert( {"deferred", deferred} );
 
-	std::vector<ngl::Vec4> screenQuadPoints = {
-		ngl::Vec4( -1.0f, -1.0f, 0.0f, 1.0f ),
-		ngl::Vec4( 1.0f, -1.0f, 0.0f, 1.0f ),
-		ngl::Vec4( -1.0f, 1.0f, 0.0f, 1.0f ),
-		ngl::Vec4( 1.0f, 1.0f, 0.0f, 1.0f )
-	};
-	std::vector<ngl::Vec2> screenQuadUVs = {
-		ngl::Vec2( 0.0f, 0.0f ),
-		ngl::Vec2( 1.0f, 0.0f ),
-		ngl::Vec2( 1.0f, 1.0f ),
-		ngl::Vec2( 0.0f, 1.0f )
-	};
-	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
-	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
 
-	//Wtf testing
-	/*std::cout << "Clearing..." << glGetError() << '\n';
-	std::vector<Framebuffer> testslot;
-
-	Framebuffer tBuffer;
-	tBuffer.initialise(
-				m_dimensions.m_x,
-				m_dimensions.m_y
-				);
-	tBuffer.addTexture( "diffuse", GL_RGBA, GL_RGBA, GL_COLOR_ATTACHMENT0 );
-	tBuffer.addTexture( "position", GL_RGBA, GL_RGBA32F, GL_COLOR_ATTACHMENT1 );
-	tBuffer.addTexture( "normal", GL_RGBA, GL_RGBA16F, GL_COLOR_ATTACHMENT2 );
-	tBuffer.addTexture( "linearDepth", GL_RED, GL_R16F, GL_COLOR_ATTACHMENT3 );
-	tBuffer.addDepthAttachment( "depth" );
-	if(!tBuffer.checkComplete())
-		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
-	tBuffer.unbind();
-
-	std::cout << "e0 " << glGetError() << "\n";
-
-	testslot.push_back(tBuffer);
-	Framebuffer x;
-	x.initialise(m_dimensions.m_x, m_dimensions.m_y);
-	testslot.push_back(x);
-
-	tBuffer.bind();
-
-	std::cout << "e1 " << glGetError() << "\n";
-
-	Utility::errorExit("1");*/
+	std::cout << "Renderer construction completed.\n";
 }
 
 void Renderer::createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo, const std::string _tessctrl, const std::string _tesseval)
@@ -273,8 +252,15 @@ void Renderer::shader(const std::string &_shader)
 	slib->use( _shader );
 }
 
-void Renderer::draw(const std::string &_mesh, const ngl::Vec3 &_pos, const ngl::Vec3 &_rot)
+void Renderer::draw(
+		const std::string &_mesh,
+		const ngl::Vec3 &_pos,
+		const ngl::Vec3 &_rot,
+		const bool _shadows
+		)
 {
+	//Draw mesh into active buffer.
+	m_transform.reset();
 	m_transform.setPosition( _pos );
 	m_transform.setRotation( _rot );
 
@@ -284,17 +270,18 @@ void Renderer::draw(const std::string &_mesh, const ngl::Vec3 &_pos, const ngl::
 
 	loadMatricesToShader();
 	mesh->draw();
+
+	//Draw mesh into shadow buffer.
+	m_transform.reset();
 }
 
 void Renderer::render()
 {
 	for(auto &i : m_pipelines)
 		i.second.execute();
-	/*glBindFramebuffer( GL_FRAMEBUFFER, 0 );
-	clear();*/
 
 	for(auto &i : m_pipelines)
-			i.second.dump();
+		i.second.dump();
 }
 
 void Renderer::shadingPipeline(const std::string &_pipe)
@@ -305,7 +292,6 @@ void Renderer::shadingPipeline(const std::string &_pipe)
 
 void Renderer::clear()
 {
-	glClearColor(1.0f,0.0f,0.0f,0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -459,7 +445,52 @@ void Renderer::loadMatricesToShader()
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
 	ngl::Mat4 M = m_transform.getMatrix();
 	ngl::Mat4 MVP = M * m_cam->getVP();
+	/*std::cout << "VIEW\n";
+	std::cout << m_cam->getV() << '\n';
+	std::cout << "PROJECT\n";
+	std::cout << m_cam->getP() << '\n';
+	std::cout << "VIEWPROJECT\n";
+	std::cout << m_cam->getVP() << '\n';*/
 
 	slib->setRegisteredUniform( "M", M );
 	slib->setRegisteredUniform( "MVP", MVP );
+}
+
+//TODO delete
+void Renderer::debug()
+{
+	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
+	slib->use("utility_colour");
+
+	auto ref = &m_framebuffers[0];
+
+	std::cout << glGetError() << ", " << glGetError() << '\n';
+	ref->bind();
+	std::cout << glGetError() << ", " << glGetError() << "\n\n";
+	ref->activeColourAttachments( );
+	//glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+	glClearColor(1.0f,0.0f,1.0f,1.0f);
+	clear();
+	draw( "sphere" );
+	//swap();
+	//return;
+
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+	glClearColor(1.0f,0.0f,1.0f,1.0f);
+	clear();
+	glBindVertexArray( m_screenQuadVAO );
+
+	slib->use("utility_texCopy");
+	m_transform.reset();
+	loadMatricesToShader();
+
+	GLuint id = slib->getProgramID("utility_texCopy");
+	std::cout << "p1\n";
+	ref->debugPrint("");
+	ref->bindTexture( id, "diffuse", "u_tex", 0 );
+	std::cout << "p2\n";
+	glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
+
+	glBindVertexArray( 0 );
+	swap();
 }

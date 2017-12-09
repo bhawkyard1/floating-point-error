@@ -1,4 +1,5 @@
 #include <ngl/ShaderLib.h>
+#include <ngl/Transformation.h>
 
 #include "ShadingPipeline.hpp"
 #include "Utility.hpp"
@@ -42,11 +43,11 @@ void ShadingPipeline::execute()
 		stage.m_output->activeColourAttachments( stage.m_attachments );
 
 		//Do I need to clear?
-		glClearColor(0.0,1.0,0.0,1.0);
+		glClearColor(0.0,0.0,0.0,1.0);
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 		//Draw screen quad.
-		//glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
+		glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
 	}
 	glBindVertexArray( 0 );
 }
@@ -61,7 +62,9 @@ void ShadingPipeline::dump()
 {
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
 	slib->use( "utility_texCopy" );
-	slib->setRegisteredUniform( "M", ngl::Mat4() );
+	ngl::Transformation tr;
+	//tr.setPosition(2.0,0.0,0.0);
+	slib->setRegisteredUniform( "M", tr.getMatrix() );
 
 	GLint id = slib->getProgramID( "utility_texCopy" );
 
@@ -71,10 +74,13 @@ void ShadingPipeline::dump()
 	glDrawBuffers(bufs.size(), &bufs[0]);
 
 	MemRef<Framebuffer> end( m_stages.back().m_output );
-
 	end->bindTexture( id, "solid", "u_tex", 0 );
+
 	glBindVertexArray( s_screenQuad );
-	//glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
+
+	glClearColor(0.0,0.0,0.0,1.0);
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
 
 	glBindVertexArray( 0 );
 }

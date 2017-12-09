@@ -9,6 +9,7 @@
 #include "AssetStore.hpp"
 #include "Camera.hpp"
 #include "Framebuffer.hpp"
+#include "PhysEnt.hpp"
 #include "ShadingPipeline.hpp"
 #include "Light.hpp"
 
@@ -28,12 +29,17 @@ public:
 		m_cam = MemRef<Camera>( _cam );
 	}
 
+	//TODO delete
+	void debug();
+	Framebuffer m_debugBuffer;
+	std::vector<GLuint> m_debugIds;
+
 	void shader( const std::string &_shader );
 	//Draws something into the current shading pipeline.
 	void draw(const std::string &_mesh,
 						const ngl::Vec3 &_pos = ngl::Vec3(0.0f, 0.0f, 0.0f),
-						const ngl::Vec3 &_rot = ngl::Vec3(0.0f, 0.0f, 0.0f)
-						);
+						const ngl::Vec3 &_rot = ngl::Vec3(0.0f, 0.0f, 0.0f),
+						const bool _shadows = false);
 	//Runs a shading pipeline and outputs an image.
 	void render();
 

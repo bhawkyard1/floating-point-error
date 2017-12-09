@@ -4,7 +4,7 @@
 #include "Framebuffer.hpp"
 #include "Utility.hpp"
 
-Framebuffer::~Framebuffer()
+void Framebuffer::cleanup()
 {
 	glDeleteFramebuffers(1, &m_framebuffer);
 
@@ -12,7 +12,7 @@ Framebuffer::~Framebuffer()
 		glDeleteTextures( 1, &tex.second );
 }
 
-void Framebuffer::initialise(int _w, int _h)
+void Framebuffer::init(int _w, int _h)
 {
 	m_w = _w;
 	m_h = _h;
@@ -27,7 +27,7 @@ void Framebuffer::initialise(int _w, int _h)
 
 void Framebuffer::activeColourAttachments()
 {
-	for(auto &buf : m_colorAttachments)
+	for(auto &buf : m_colourAttachments)
 	{
 		if(buf > m_maxColourTarget)
 		{
@@ -35,7 +35,7 @@ void Framebuffer::activeColourAttachments()
 			exit(EXIT_FAILURE);
 		}
 	}
-	glDrawBuffers(m_colorAttachments.size(), &m_colorAttachments[0]);
+	glDrawBuffers(m_colourAttachments.size(), &m_colourAttachments[0]);
 }
 
 void Framebuffer::activeColourAttachments(const std::vector<GLenum> &_bufs)
@@ -72,9 +72,10 @@ void Framebuffer::addDepthAttachment(const std::string &_identifier)
 void Framebuffer::addTexture(const std::string &_identifier, GLuint _tex, GLenum _attachment)
 {
 	m_textures.insert( std::make_pair(_identifier, _tex) );
-	m_colorAttachments.push_back( _attachment );
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, _attachment, GL_TEXTURE_2D, m_textures[ _identifier ], 0);
+
+	m_colourAttachments.push_back( _attachment );
 }
 
 void Framebuffer::addTexture(const std::string &_identifier, GLenum _format, GLenum _iformat , GLenum _attachment, GLint _type)
@@ -85,12 +86,12 @@ void Framebuffer::addTexture(const std::string &_identifier, GLenum _format, GLe
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, _attachment, GL_TEXTURE_2D, m_textures[ _identifier ], 0);
 
-	m_colorAttachments.push_back( _attachment );
+	m_colourAttachments.push_back( _attachment );
 }
 
-void Framebuffer::bind()
+void Framebuffer::bind( GLenum type )
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+	glBindFramebuffer(type, m_framebuffer);
 }
 
 void Framebuffer::bindTexture(const GLint _shaderID, const std::string &_tex, const char *_uniform, int _target)
@@ -98,12 +99,12 @@ void Framebuffer::bindTexture(const GLint _shaderID, const std::string &_tex, co
 	GLint loc = glGetUniformLocation(_shaderID, _uniform);
 
 	if(loc == -1)
-				Utility::errorExit( "Uh oh! Invalid uniform location in Framebuffer::bindTexture!! " + std::string(_uniform) + '\n' );
+			Utility::warning( "Uh oh! Invalid uniform location in Framebuffer::bindTexture!! " + std::string(_uniform) + '\n' );
 
 	glUniform1i(loc, _target);
 
 	glActiveTexture(GL_TEXTURE0 + _target);
-	glBindTexture(GL_TEXTURE_2D, m_textures.at(_tex));
+	glBindTexture(GL_TEXTURE_2D, m_textures.at( _tex ) );
 }
 
 bool Framebuffer::checkComplete()
@@ -113,11 +114,11 @@ bool Framebuffer::checkComplete()
 
 void Framebuffer::clear()
 {
-	activeColourAttachments( );
+	//activeColourAttachments( );
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-GLuint Framebuffer::genTexture(int _width, int _height, GLint _format, GLint _internalFormat, GLint _type)
+GLuint Framebuffer::genTexture(int _width, int _height, GLenum _format, GLint _internalFormat, GLenum _type)
 {
 	GLuint tex;
 	glGenTextures(1, &tex);
@@ -125,8 +126,8 @@ GLuint Framebuffer::genTexture(int _width, int _height, GLint _format, GLint _in
 
 	glTexImage2D(GL_TEXTURE_2D, 0, _internalFormat, _width, _height, 0, _format, _type, NULL);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	return tex;
 }
@@ -134,4 +135,23 @@ GLuint Framebuffer::genTexture(int _width, int _height, GLint _format, GLint _in
 void Framebuffer::unbind()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framebuffer::debugPrint( const std::string &_title )
+{
+	std::cout << _title << '\n';
+	std::cout << "Max colour target " << m_maxColourTarget << '\n';
+	std::cout << "Colour attachments ";
+	for(auto &i : m_colourAttachments)
+	{
+		std::cout << i << " ";
+	}
+	std::cout << '\n';
+	std::cout << "Framebuffer " << m_framebuffer << '\n';
+	std::cout << "Width, height " << m_w << ", " << m_h << '\n';
+	std::cout << "Textures " << m_textures.size() << '\n';
+	for( auto &i : m_textures )
+	{
+		std::cout << "	" << i.first << ", " << i.second << '\n';
+	}
 }
