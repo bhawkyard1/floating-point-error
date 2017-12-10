@@ -28,9 +28,6 @@ public:
 	/// @brief Destroys the framebuffer and all associated textures.
 	void cleanup();
 
-	//Todo delete
-	void debugPrint(const std::string &_title);
-
 	/// @brief Initialises the framebuffer to a given width and height. All textures added later will conform to these dimensions.
 	/// @param [in] _w, The width of the framebuffer. All texture targets will conform to this.
 	/// @param [in] _h, The height of the framebuffer. All texture targets will conform to this.

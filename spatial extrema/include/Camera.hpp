@@ -52,7 +52,6 @@ public:
 	void setInitPivot(const ngl::Vec3 &_pivot) {m_initPivot = _pivot;}
 
 	void moveCamera(const ngl::Vec3 _translation);
-	void moveWorld(const ngl::Vec3 _translation);
 	void rotateCamera(const float _pitch, const float _yaw, const float _roll);
 	void rotateWorld(const float _pitch, const float _yaw, const float _roll);
 	void transformCamera(const ngl::Mat4 _trans) {m_cameraTransformationStack.push_back(_trans);}
@@ -69,6 +68,8 @@ public:
 	void setFar(const float _far) {m_far = _far;}
 	float getNear() const {return m_near;}
 	float getFar() const {return m_far;}
+
+	std::array<ngl::Vec4, 8> Camera::calculateCascade(float _start, float _end);
 private:
 	float m_fov;
 	float m_aspect;

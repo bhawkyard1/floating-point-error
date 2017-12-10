@@ -1,7 +1,12 @@
-#include <ngl/Util.h>
-#include <iostream>
-#include "Camera.hpp"
+#include <array>
 
+#include <ngl/Util.h>
+#include <ngl/Vec3.h>
+
+#include "Camera.hpp"
+#include "Utility.hpp"
+
+#include <iostream>
 #include <ngl/NGLStream.h>
 
 Camera::Camera( MemRef<PhysEnt> _base ) :
@@ -76,11 +81,6 @@ void Camera::moveCamera(const ngl::Vec3 _translation)
     m_cameraTransformationStack.push_back( translationMatrix(_translation) );
 }
 
-void Camera::moveWorld(const ngl::Vec3 _translation)
-{
-    m_worldTransformationStack.push_back( translationMatrix(_translation) );
-}
-
 ngl::Mat4 Camera::rotationMatrix(float _pitch, float _yaw, float _roll)
 {
     ngl::Mat4 p;
@@ -101,4 +101,49 @@ ngl::Mat4 Camera::translationMatrix(const ngl::Vec3 &_vec)
     ngl::Mat4 trans;
     trans.translate( _vec.m_x, _vec.m_y, _vec.m_z );
     return trans;
+}
+
+std::array<ngl::Vec4, 8> Camera::calculateCascade(float _start, float _end)
+{
+		std::array<ngl::Vec4, 8> cascade;
+
+		//Distance from the look vector, on the right vector
+		float horizontal = tanf( Utility::radians(m_fov) / 1.0f );
+
+		//float verticalFOV = m_fov / m_aspect;
+
+		float verticalFOV = 2.0f * atan( tanf(Utility::radians(m_fov) / 2.0f) / m_aspect );
+
+		float vertical = tanf(verticalFOV);
+
+		_start = -_start;
+		_end = -_end;
+
+		float sh = _start * horizontal;
+		float sv = _start * vertical;
+		float eh = _end * horizontal;
+		float ev = _end * vertical;
+
+		//Near plane
+		cascade[0] = ngl::Vec4( -sh, sv, _start, 1.0 ); //Top left
+		cascade[1] = ngl::Vec4( sh, sv, _start, 1.0 ); //Top right
+		cascade[2] = ngl::Vec4( -sh, -sv, _start, 1.0 ); //Bottom left
+		cascade[3] = ngl::Vec4( sh, -sv, _start, 1.0 ); //Bottom right
+
+		//Far plane
+		cascade[4] = ngl::Vec4( -eh, ev, _end, 1.0 ); //Top left
+		cascade[5] = ngl::Vec4( eh, ev, _end, 1.0 ); //Top right
+		cascade[6] = ngl::Vec4( -eh, -ev, _end, 1.0 ); //Bottom left.
+		cascade[7] = ngl::Vec4( eh, -ev, _end, 1.0 ); //Bottom right
+
+		//Project from view space to world space
+		ngl::Mat4 iv = m_V;
+		//iv = iv.transpose();
+		iv = iv.inverse();
+
+		for(auto &i : cascade)
+				i = i * iv;
+
+		//Return cascade in world space.
+		return cascade;
 }

@@ -1,6 +1,7 @@
+#include <array>
+
 #include <ngl/NGLInit.h>
 #include <ngl/ShaderLib.h>
-#include <ngl/NGLStream.h>
 
 #include "Renderer.hpp"
 #include "File.hpp"
@@ -91,6 +92,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		else if( data[0] == "TEXTURE" ) s_assetStore.loadTexture( data[2], data[1] );
 	}
 
+	std::cout << "Creating screen squad mesh...\n";
 	std::vector<ngl::Vec4> screenQuadPoints = {
 		ngl::Vec4( -1.0f, -1.0f, 0.0f, 1.0f ),
 		ngl::Vec4( 1.0f, -1.0f, 0.0f, 1.0f ),
@@ -106,6 +108,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
 	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
 
+	std::cout << "Generating deferred shading pipeline...\n";
 	//Set up deferred shading pipeline.
 	//Framebuffers
 	Framebuffer gBuffer;
@@ -164,8 +167,19 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	m_pipelines.insert( {"deferred", deferred} );
 
+	std::cout << "Generating light buffer...\n";
+	//Setup lighting buffers
+	glGenBuffers( 1, &m_lightBuffer );
 
 	std::cout << "Renderer construction completed.\n";
+}
+
+Renderer::~Renderer()
+{
+	for( auto &buf : m_framebuffers.m_objects )
+		buf.cleanup();
+	for( auto &dat : m_shadowData )
+		dat.m_framebuffer.cleanup();
 }
 
 void Renderer::createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo, const std::string _tessctrl, const std::string _tesseval)
@@ -252,6 +266,22 @@ void Renderer::shader(const std::string &_shader)
 	slib->use( _shader );
 }
 
+void Renderer::update()
+{
+	m_renderLights.clear();
+	for( auto &light : m_lights->m_objects )
+		m_renderLights.push_back( light.getRenderData() );
+
+	if( m_renderLights.size() > 0 )
+	{
+		glBindBuffer(GL_UNIFORM_BUFFER, m_lightBuffer);
+		GLvoid * dat = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+		memcpy(dat, &m_renderLights[0], sizeof(RenderLight) * std::min( m_renderLights.size(), static_cast<size_t>(m_maxLights)));
+		glUnmapBuffer(GL_UNIFORM_BUFFER);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+}
+
 void Renderer::draw(
 		const std::string &_mesh,
 		const ngl::Vec3 &_pos,
@@ -271,8 +301,32 @@ void Renderer::draw(
 	loadMatricesToShader();
 	mesh->draw();
 
-	//Draw mesh into shadow buffer.
+	if( !_shadows )
+		return;
+
+	//Draw mesh into shadow buffers.
 	m_transform.reset();
+
+	for( auto &data : m_shadowData )
+	{
+		ngl::ShaderLib * slib = ngl::ShaderLib::instance();
+		data.m_framebuffer.bind();
+		for( int i = 0; i < m_shadowCascades; ++i )
+		{
+			glFramebufferTexture2D(
+						GL_FRAMEBUFFER,
+						GL_DEPTH_ATTACHMENT,
+						GL_TEXTURE_2D,
+						data.m_framebuffer.get( "depth" + std::to_string( i ) ),
+						0
+						);
+			glClear( GL_DEPTH_BUFFER_BIT );
+			slib->use( "shadowDepth" );
+			loadMatricesToShader( ngl::Mat4(), data.m_matrices[ i ] );
+			mesh->draw();
+		}
+		data.m_framebuffer.unbind();
+	}
 }
 
 void Renderer::render()
@@ -286,7 +340,6 @@ void Renderer::render()
 
 void Renderer::shadingPipeline(const std::string &_pipe)
 {
-	std::cout << "Binding " << _pipe << " for input.\n";
 	m_pipelines.at( _pipe ).bindInput();
 }
 
@@ -433,6 +486,93 @@ void Renderer::setBufferLocation(GLuint _buffer, int _index, int _size)
 	glVertexAttribPointer( _index, _size, GL_FLOAT, GL_FALSE, 0, 0 );
 }
 
+void Renderer::generateShadowData(const std::vector<float> &_segDepths)
+{
+	//If we proceed with _segDepths being zero, the program will later crash.
+	if( _segDepths.size() == 0 )
+		return;
+
+	//Get the coordinates of each camera cascade, in world space.
+	using Cascade = std::array< ngl::Vec4, 8 >;
+	std::vector< Cascade > cascades;
+	for( size_t i = 0 ; i < _segDepths.size() - 1; ++i )
+	{
+		Cascade c = m_cam->calculateCascade(
+					_segDepths[ i ],
+					_segDepths[ i + 1 ]
+				);
+		cascades.push_back( c );
+	}
+
+	//Cast the vertices of the camera frustrum into light space.
+	int shadowDataIndex = 0;
+	for( auto &light : m_lights->m_objects )
+	{
+		if( !light.m_shadowCasting )
+			continue;
+
+		//Create a new shadow data if we are out of spares.
+		if( shadowDataIndex >= m_shadowData.size() )
+		{
+			Framebuffer f;
+			int shadowResolution = 1024;
+			f.init( shadowResolution, shadowResolution );
+			for( size_t i = 0; i < m_shadowCascades; ++ i )
+				f.addTexture( "depth" + std::to_string( i ),
+											GL_DEPTH_COMPONENT,
+											GL_DEPTH_COMPONENT,
+											GL_DEPTH_ATTACHMENT );
+			if( !f.checkComplete() )
+				Utility::errorExit( "Error! Shadow framebuffer could not be created! Error " + std::to_string( glGetError() ) );
+			f.unbind();
+			ShadowData sd;
+			sd.m_framebuffer = f;
+			sd.m_matrices = std::vector< ngl::Mat4 >();
+			m_shadowData.push_back( sd );
+		}
+
+		ngl::Vec3 rot = light.getRot();
+		ngl::Transformation t;
+		t.setRotation( rot );
+		ngl::Mat4 rotMat = t.getMatrix();
+
+		std::vector< Cascade > lightSpaceCascades;
+		for( auto c : cascades )
+		{
+			Cascade cL;
+			for( size_t i = 0; i < c.size(); ++i )
+			{
+				cL[i] = c[i] * rotMat;
+			}
+			lightSpaceCascades.push_back( cL );
+		}
+
+		using Bounds = std::pair< ngl::Vec3, ngl::Vec3 >;
+		for( auto cL : lightSpaceCascades )
+		{
+			Bounds bounds = Utility::enclose( cL );
+			ngl::Vec3 pos = -(bounds.first + bounds.second) / 2.0f;
+			ngl::Vec3 dim = (bounds.second - bounds.first) / 2.0f;
+			ngl::Mat4 boundsTrans = ngl::Mat4();
+			boundsTrans.translate( pos.m_x, pos.m_y, pos.m_z );
+
+			ngl::Mat4 project = ngl::ortho(
+						-dim.m_x, dim.m_x,
+						-dim.m_y, dim.m_y,
+						-dim.m_z, dim.m_z
+						);
+			ngl::Mat4 view = ngl::lookAt(
+						ngl::Vec3(),
+						rotMat.getForwardVector(),
+						ngl::Vec3( 0.0f, 1.0f, 0.0f )
+						);
+
+			m_shadowData[ shadowDataIndex ].m_matrices.push_back( project * view );
+		}
+	}
+	shadowDataIndex++;
+}
+
 void Renderer::loadMatricesToShader(const ngl::Mat4 _M, const ngl::Mat4 _MVP)
 {
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
@@ -464,9 +604,7 @@ void Renderer::debug()
 
 	auto ref = &m_framebuffers[0];
 
-	std::cout << glGetError() << ", " << glGetError() << '\n';
 	ref->bind();
-	std::cout << glGetError() << ", " << glGetError() << "\n\n";
 	ref->activeColourAttachments( );
 	//glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 	glClearColor(1.0f,0.0f,1.0f,1.0f);
@@ -485,10 +623,7 @@ void Renderer::debug()
 	loadMatricesToShader();
 
 	GLuint id = slib->getProgramID("utility_texCopy");
-	std::cout << "p1\n";
-	ref->debugPrint("");
 	ref->bindTexture( id, "diffuse", "u_tex", 0 );
-	std::cout << "p2\n";
 	glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
 
 	glBindVertexArray( 0 );

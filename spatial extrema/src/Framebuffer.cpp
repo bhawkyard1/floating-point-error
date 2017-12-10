@@ -136,22 +136,3 @@ void Framebuffer::unbind()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-
-void Framebuffer::debugPrint( const std::string &_title )
-{
-	std::cout << _title << '\n';
-	std::cout << "Max colour target " << m_maxColourTarget << '\n';
-	std::cout << "Colour attachments ";
-	for(auto &i : m_colourAttachments)
-	{
-		std::cout << i << " ";
-	}
-	std::cout << '\n';
-	std::cout << "Framebuffer " << m_framebuffer << '\n';
-	std::cout << "Width, height " << m_w << ", " << m_h << '\n';
-	std::cout << "Textures " << m_textures.size() << '\n';
-	for( auto &i : m_textures )
-	{
-		std::cout << "	" << i.first << ", " << i.second << '\n';
-	}
-}

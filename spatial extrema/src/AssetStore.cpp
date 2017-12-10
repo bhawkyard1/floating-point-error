@@ -35,10 +35,13 @@ void AssetStore::loadMesh(const std::string &_id, const std::string &_path)
 				std::cerr << "Uh oh! Mesh from " << g_resourceLocation + _path <<  " could not be loaded. Aborting...";
         return;
 		}
+		std::cout << "\tCreating GPU buffer...\n";
     mesh->createVAO();
 
+		std::cout << "\tStoring data...\n";
     //m_meshes now responsible for deleting mesh
 		m_meshes.insert(std::make_pair(_id, std::unique_ptr<ngl::Obj>(mesh)));
+		std::cout << "\tSuccess.\n";
 }
 
 void AssetStore::loadTexture(const std::string &_id, const std::string &_path)

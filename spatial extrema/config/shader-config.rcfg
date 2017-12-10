@@ -2,5 +2,6 @@
 #<name> <vertex-shader> <fragment-shader> <geo-shader> <tessctrl-shader> <tesseval-shader>
 deferred_pass vert_deferred_dataPass frag_deferred_data
 deferred_light vert_util_screen frag_deferred_light
+deferred_shadowDepth vert_deferred_dataPass frag_deferred_shadowDepth
 utility_texCopy vert_util_screen frag_util_texCopy
 utility_colour vert_deferred_dataPass frag_util_colour

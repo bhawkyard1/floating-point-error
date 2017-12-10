@@ -19,6 +19,7 @@ class Renderer
 {
 public:
 	Renderer( const ngl::Vec2 _dimensions );
+	~Renderer();
 
 	void createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo = "", const std::string _tessctrl = "", const std::string _tesseval = "");
 	std::string loadShaderToString( const std::string &_path );
@@ -33,6 +34,8 @@ public:
 	void debug();
 	Framebuffer m_debugBuffer;
 	std::vector<GLuint> m_debugIds;
+
+	void update();
 
 	void shader( const std::string &_shader );
 	//Draws something into the current shading pipeline.
@@ -57,6 +60,7 @@ public:
 	GLuint createBuffer1f(std::vector<float> _vec);
 	void setBufferLocation(GLuint _buffer, int _index, int _size);
 
+	void generateShadowData( const std::vector<float> &_segDepths );
 	///
 	/// @brief Loads a custom set of matrices to the active shader
 	/// @param _M, The model matrix.
@@ -69,11 +73,13 @@ public:
 	void loadMatricesToShader();
 
 private:
+	//Scene data
 	MemRef< Camera > m_cam;
+	Slotmap< Light > * m_lights;
+	std::vector< RenderLight > m_renderLights;
 
 	//Assets
 	static AssetStore s_assetStore;
-
 	GLuint m_screenQuadVAO;
 
 	//Windowing
@@ -87,7 +93,21 @@ private:
 	//Shading pipelines.
 	std::unordered_map< std::string, ShadingPipeline > m_pipelines;
 
+	//Transformation data
+	struct ShadowData
+	{
+		//Data is stored per-light.
+		Framebuffer m_framebuffer;
+		std::vector< ngl::Mat4 > m_matrices;
+		void cleanup() {m_framebuffer.cleanup();}
+	};
+	int m_shadowCascades = 3;
+	std::vector< ShadowData > m_shadowData;
 	ngl::Transformation m_transform;
+
+	//Lighting data.
+	GLuint m_lightBuffer;
+	size_t m_maxLights = 512;
 };
 
 #endif

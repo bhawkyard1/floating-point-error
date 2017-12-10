@@ -23,7 +23,6 @@ void ShadingPipeline::execute()
 		//Set the shader, and get its ID for later use.
 		slib->use( stage.m_shader );
 		slib->setRegisteredUniform( "M", ngl::Mat4() );
-		std::cout << "Using " << stage.m_shader << '\n';
 		GLint id = slib->getProgramID( stage.m_shader );
 
 		//Cycle through the stage inputs, wire up textures to uniforms.

@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include <ngl/ShaderLib.h>
+
 #include "Framebuffer.hpp"
 #include "MemRef.hpp"
 
@@ -19,9 +21,12 @@ struct ShadingInput
 
 struct ShadingStage
 {
-	ShadingStage( const std::vector< ShadingInput > &_inputs, const MemRef< Framebuffer > &_output ) :
-	m_inputs(_inputs),
-	m_output(_output)
+	ShadingStage(
+			const std::vector< ShadingInput > &_inputs,
+			const MemRef< Framebuffer > &_output
+			) :
+		m_inputs( _inputs ),
+		m_output( _output )
 	{}
 
 	//The framebuffers we are sourcing from.

@@ -1597,6 +1597,11 @@ obj\main.obj: main.cpp include/Scene.hpp \
 		include/Light.hpp \
 		include/Renderer.hpp \
 		include/ShadingPipeline.hpp \
+		C:\NGL\include\ngl\ShaderLib.h \
+		C:\NGL\include\ngl\Shader.h \
+		C:\NGL\include\ngl\ShaderProgram.h \
+		C:\NGL\include\ngl\Util.h \
+		C:\NGL\include\ngl\Mat3.h \
 		include/SimTime.hpp
 
 obj\AssetStore.obj: src\AssetStore.cpp C:\SDL2\include\SDL_image.h \
@@ -4303,6 +4308,7 @@ obj\Camera.obj: src\Camera.cpp C:\NGL\include\ngl\Util.h \
 		include/MemRef.hpp \
 		include/Slotmap.hpp \
 		include/PhysEnt.hpp \
+		include/Utility.hpp \
 		C:\NGL\include\ngl\NGLStream.h
 
 obj\Common.obj: src\Common.cpp 
@@ -9617,7 +9623,6 @@ obj\Renderer.obj: src\Renderer.cpp C:\NGL\include\ngl\NGLInit.h \
 		C:\NGL\include\ngl\Vec2.h \
 		C:\NGL\include\ngl\Mat3.h \
 		C:\NGL\include\ngl\Mat4.h \
-		C:\NGL\include\ngl\NGLStream.h \
 		include/Renderer.hpp \
 		C:\NGL\include\ngl\Transformation.h \
 		C:\NGL\include\ngl\NGLassert.h \
@@ -9681,6 +9686,7 @@ obj\Renderer.obj: src\Renderer.cpp C:\NGL\include\ngl\NGLInit.h \
 		include/Light.hpp \
 		include/File.hpp \
 		include/Utility.hpp \
+		C:\NGL\include\ngl\NGLStream.h \
 		C:\NGL\include\NGL\NGLStream.h
 
 obj\Scene.obj: src\Scene.cpp C:\NGL\include\ngl\ShaderLib.h \
