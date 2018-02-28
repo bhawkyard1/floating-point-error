@@ -41,7 +41,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -108,6 +108,19 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
 	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
 
+	std::cout << "Generating light data...\n";
+	//Setup lighting buffers
+	m_renderLights.assign( m_maxLights, RenderLight() );
+	glGenBuffers( 1, &m_lightBuffer );
+	glBindBuffer( GL_UNIFORM_BUFFER, m_lightBuffer );
+	std::cout << "p1\n";
+	glBufferData( GL_UNIFORM_BUFFER, sizeof( RenderLight ) * m_maxLights, &m_renderLights[0], GL_DYNAMIC_DRAW );
+	std::cout << "p2\n";
+	glBindBuffer( GL_UNIFORM_BUFFER, 0 );
+
+	int NUM_CASCADES_WHERE = 3;
+	m_shadowMatrices.assign( m_maxLights * NUM_CASCADES_WHERE, ngl::Mat4() );
+
 	std::cout << "Generating deferred shading pipeline...\n";
 	//Set up deferred shading pipeline.
 	//Framebuffers
@@ -160,6 +173,9 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	ShadingStage lighting( lightingInputs, compositeRef );
 	lighting.m_attachments = {GL_COLOR_ATTACHMENT0};
 	lighting.m_shader = "deferred_light";
+	lighting.m_dataBuffers.push_back(
+				UniformBuffer( m_lightBuffer, "lbuf" )
+				);
 
 	deferredStages.push_back( lighting );
 
@@ -167,9 +183,13 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	m_pipelines.insert( {"deferred", deferred} );
 
-	std::cout << "Generating light buffer...\n";
-	//Setup lighting buffers
-	glGenBuffers( 1, &m_lightBuffer );
+	//Generate the shadowbuffer. This is a single framebuffer with an array texture.
+	//As opposed to my initial idea, vector of buffers
+	m_shadowBuffer.init(
+				m_dimensions.m_x,
+				m_dimensions.m_y
+				);
+	m_shadowBuffer.addTextureArray( "depths", GL_RED, GL_COLOR_ATTACHMENT0, 3 );
 
 	std::cout << "Renderer construction completed.\n";
 }
@@ -178,8 +198,8 @@ Renderer::~Renderer()
 {
 	for( auto &buf : m_framebuffers.m_objects )
 		buf.cleanup();
-	for( auto &dat : m_shadowData )
-		dat.m_framebuffer.cleanup();
+
+	m_shadowBuffer.cleanup();
 }
 
 void Renderer::createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo, const std::string _tessctrl, const std::string _tesseval)
@@ -198,6 +218,12 @@ void Renderer::createShader(const std::string _name, const std::string _vert, co
 	slib->attachShader(_frag, ngl::ShaderType::FRAGMENT);
 
 	std::string fragshadersource = loadShaderToString( "shaders/" + _frag + ".glsl" );
+	std::vector<std::string> spl = Utility::split(fragshadersource, '\n');
+	for( size_t i = 0; i < spl.size(); ++i )
+	{
+		std::cout << i << " " << spl[i] << '\n';
+	}
+
 	slib->loadShaderSourceFromString(_frag, fragshadersource );
 	slib->compileShader(_frag);
 	slib->attachShaderToProgram(_name, _frag);
@@ -268,18 +294,29 @@ void Renderer::shader(const std::string &_shader)
 
 void Renderer::update()
 {
+	std::cout << "Renderer::update 1\n";
 	m_renderLights.clear();
+	std::cout << "Renderer::update 1.1\n";
 	for( auto &light : m_lights->m_objects )
 		m_renderLights.push_back( light.getRenderData() );
-
+	std::cout << "Renderer::update 1.2\n";
 	if( m_renderLights.size() > 0 )
 	{
+		std::cout << "Renderer::update 1.3\n";
 		glBindBuffer(GL_UNIFORM_BUFFER, m_lightBuffer);
+		std::cout << "Renderer::update 1.31\n";
 		GLvoid * dat = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+		std::cout << "Renderer::update 1.32 dat ptr is null? " << (dat==nullptr) << "\n";
 		memcpy(dat, &m_renderLights[0], sizeof(RenderLight) * std::min( m_renderLights.size(), static_cast<size_t>(m_maxLights)));
+		std::cout << "Renderer::update 1.33\n";
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
+		std::cout << "Renderer::update 1.3\n";
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		std::cout << "Renderer::update 1.4\n";
 	}
+	std::cout << "Renderer::update 2\n";
+	generateShadowData({0.01f, 16.0f, 64.0f, 1024.0f});
+	std::cout << "Renderer::update 3\n";
 }
 
 void Renderer::draw(
@@ -307,25 +344,24 @@ void Renderer::draw(
 	//Draw mesh into shadow buffers.
 	m_transform.reset();
 
-	for( auto &data : m_shadowData )
+	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
+	for( auto &data : m_shadowMatrices )
 	{
-		ngl::ShaderLib * slib = ngl::ShaderLib::instance();
-		data.m_framebuffer.bind();
+		m_shadowBuffer.bind();
 		for( int i = 0; i < m_shadowCascades; ++i )
 		{
-			glFramebufferTexture2D(
+			/*glFramebufferTexture2D(
 						GL_FRAMEBUFFER,
 						GL_DEPTH_ATTACHMENT,
 						GL_TEXTURE_2D,
 						data.m_framebuffer.get( "depth" + std::to_string( i ) ),
 						0
-						);
-			glClear( GL_DEPTH_BUFFER_BIT );
-			slib->use( "shadowDepth" );
-			loadMatricesToShader( ngl::Mat4(), data.m_matrices[ i ] );
+						);*/
+			glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+			slib->use( "deferred_shadowDepth" );
+			loadMatricesToShader( ngl::Mat4(), data );
 			mesh->draw();
 		}
-		data.m_framebuffer.unbind();
 	}
 }
 
@@ -492,6 +528,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 	if( _segDepths.size() == 0 )
 		return;
 
+	std::cout << "Renderer::generateShadowData 1\n";
 	//Get the coordinates of each camera cascade, in world space.
 	using Cascade = std::array< ngl::Vec4, 8 >;
 	std::vector< Cascade > cascades;
@@ -503,7 +540,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 				);
 		cascades.push_back( c );
 	}
-
+	std::cout << "Renderer::generateShadowData 2\n";
 	//Cast the vertices of the camera frustrum into light space.
 	int shadowDataIndex = 0;
 	for( auto &light : m_lights->m_objects )
@@ -511,6 +548,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 		if( !light.m_shadowCasting )
 			continue;
 
+		/*
 		//Create a new shadow data if we are out of spares.
 		if( shadowDataIndex >= m_shadowData.size() )
 		{
@@ -529,7 +567,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 			sd.m_framebuffer = f;
 			sd.m_matrices = std::vector< ngl::Mat4 >();
 			m_shadowData.push_back( sd );
-		}
+		}*/
 
 		ngl::Vec3 rot = light.getRot();
 		ngl::Transformation t;
@@ -547,6 +585,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 			lightSpaceCascades.push_back( cL );
 		}
 
+		std::cout << "Renderer::generateShadowData 3\n";
 		using Bounds = std::pair< ngl::Vec3, ngl::Vec3 >;
 		for( auto cL : lightSpaceCascades )
 		{
@@ -567,9 +606,11 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 						ngl::Vec3( 0.0f, 1.0f, 0.0f )
 						);
 
-			m_shadowData[ shadowDataIndex ].m_matrices.push_back( project * view );
+			m_shadowMatrices[ shadowDataIndex ] = project * view;
 		}
+		std::cout << "Renderer::generateShadowData 3.1\n";
 	}
+	std::cout << "Renderer::generateShadowData 4\n";
 	shadowDataIndex++;
 }
 
@@ -585,12 +626,6 @@ void Renderer::loadMatricesToShader()
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
 	ngl::Mat4 M = m_transform.getMatrix();
 	ngl::Mat4 MVP = M * m_cam->getVP();
-	/*std::cout << "VIEW\n";
-	std::cout << m_cam->getV() << '\n';
-	std::cout << "PROJECT\n";
-	std::cout << m_cam->getP() << '\n';
-	std::cout << "VIEWPROJECT\n";
-	std::cout << m_cam->getVP() << '\n';*/
 
 	slib->setRegisteredUniform( "M", M );
 	slib->setRegisteredUniform( "MVP", MVP );

@@ -26,6 +26,7 @@ private:
 	Renderer m_renderer;
 	Camera m_cam;
 	Slotmap< PhysEnt > m_ents;
+	Slotmap< Light > m_lights;
 };
 
 #endif//__SCENE_HPP__

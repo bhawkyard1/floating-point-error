@@ -37,7 +37,6 @@ public:
 	ngl::Vec3 back() const {return -forward();}
 
 	void update(const float _dt);
-
 private:
 	ngl::Vec3 m_pos;
 	ngl::Vec3 m_vel;

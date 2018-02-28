@@ -29,14 +29,23 @@ Scene::Scene() :
 	m_cam.setFar( 1024.0f );
 	m_cam.clearTransforms();
 	m_cam.calculate();
+
+	Light light(
+				addEnt(),
+				ngl::Vec3( 1.0f, 1.0f, 1.0f ),
+				1.0f,
+				LIGHT_DIRECTIONAL,
+				true
+				);
+	m_lights.push_back( light );
 }
 
 void Scene::draw(const float _dt)
 {
 	m_renderer.shadingPipeline( "deferred" );
 	m_renderer.clear();
-	m_renderer.shader( "utility_colour" );
-	m_renderer.draw( "sphere", ngl::Vec3(0,0,0), ngl::Vec3(0,0,0) );
+	m_renderer.shader( "deferred_pass" );
+	m_renderer.draw( "sphere", ngl::Vec3(0,0,0), ngl::Vec3(0,0,0), true );
 
 	m_renderer.render();
 	m_renderer.swap();
@@ -48,6 +57,8 @@ void Scene::update(const float _dt)
 {
 	m_cam.calculate();
 	m_renderer.setCamera( &m_cam );
+	m_renderer.setLights( &m_lights );
+	m_renderer.update();
 }
 
 MemRef<PhysEnt> Scene::addEnt()

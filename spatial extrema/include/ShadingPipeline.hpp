@@ -19,6 +19,25 @@ struct ShadingInput
 	std::vector< std::pair< std::string, std::string > > m_links;
 };
 
+struct UniformBuffer
+{
+	UniformBuffer( GLuint _buf, const std::string &_name )
+	{
+		m_buf = _buf;
+		m_name = _name;
+	}
+
+	void bind( GLuint _shaderID )
+	{
+		GLuint blockIndex = glGetUniformBlockIndex( _shaderID, m_name.c_str() );
+		glBindBufferBase( GL_UNIFORM_BUFFER, 1, m_buf );
+		glUniformBlockBinding( _shaderID, blockIndex, 1 );
+	}
+
+	GLuint m_buf;
+	std::string m_name;
+};
+
 struct ShadingStage
 {
 	ShadingStage(
@@ -31,6 +50,9 @@ struct ShadingStage
 
 	//The framebuffers we are sourcing from.
 	std::vector< ShadingInput > m_inputs;
+
+	//Any uniform buffers we are using. This can contain things like lights.
+	std::vector< UniformBuffer > m_dataBuffers;
 
 	//The attachments in the output we will write to.
 	std::vector< GLenum > m_attachments;

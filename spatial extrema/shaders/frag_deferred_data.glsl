@@ -1,4 +1,4 @@
-#version 410 core
+#version 430 core
 
 in vec4 position;
 in vec4 normal;
@@ -11,7 +11,7 @@ layout( location = 3 ) out float outDepth;
 
 void main()
 {
-    outColour = vec4(1.0,1.0,1.0,1.0);//texture(diffuse, vec2(UV.x, -UV.y));
+    outColour = vec4(0.5, 0.5 ,0.5 ,1.0);//texture(diffuse, vec2(UV.x, -UV.y));
                 //outColour.a = 1.0;
     outNormal = normal;
     outPosition = position;

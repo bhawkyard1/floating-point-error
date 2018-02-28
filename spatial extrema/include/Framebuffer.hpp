@@ -57,6 +57,7 @@ public:
 	/// @param [in] _attachment, The attachment point.
 	/// @param [in] _type, The data type, float by default.
 	void addTexture(const std::string &_identifier, GLenum _format, GLenum _iformat, GLenum _attachment, GLint _type = GL_FLOAT);
+	void addTextureArray(const std::string &_identifier, GLenum _iformat, GLenum _attachment, size_t _layers);
 
 	/// @brief Creates and adds a depth attachment to the framebuffer.
 	/// @param [in] _identifier, The string id.
@@ -90,6 +91,17 @@ public:
 	/// @brief Returns the ID of the framebuffer.
 	/// @return m_framebuffer, The GLuint ID of the framebuffer.
 	GLuint getID() {return m_framebuffer;}
+
+	std::vector< std::string > getTextureIDs()
+	{
+		std::vector< std::string > ret;
+		for(auto &i : m_textures)
+		{
+			ret.push_back(i.first);
+		}
+		return ret;
+	}
+
 private:
 	/// @brief Generates a texture, given a set of parameters.
 	/// @param [in] _width, The width of the texture. Should always match the width of the framebuffer.
@@ -98,6 +110,7 @@ private:
 	/// @param [in] _internalFormat, The internal format of the texture, such as GL_RGB8.
 	/// @param [in] _type, The data type of the texture, should normally be GL_FLOAT.
 	GLuint genTexture(int _width, int _height, GLenum _format, GLint _internalFormat, GLenum _type);
+	GLuint genTextureArray(int _width, int _height, int _layers, GLint _internalFormat);
 
 	/// @brief Used to track the maximum colour attachments available on the current machine.
 	GLenum m_maxColourTarget;

@@ -89,6 +89,22 @@ void Framebuffer::addTexture(const std::string &_identifier, GLenum _format, GLe
 	m_colourAttachments.push_back( _attachment );
 }
 
+void Framebuffer::addTextureArray(
+		const std::string &_identifier,
+		GLenum _iformat,
+		GLenum _attachment,
+		size_t _layers
+		)
+{
+	//Create texture.
+	std::pair<std::string, GLuint> tex ( _identifier, genTextureArray(m_w, m_h, _layers, _iformat ) );
+	m_textures.insert( tex );
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, _attachment, GL_TEXTURE_2D, m_textures[ _identifier ], 0);
+
+	m_colourAttachments.push_back( _attachment );
+}
+
 void Framebuffer::bind( GLenum type )
 {
 	glBindFramebuffer(type, m_framebuffer);
@@ -99,7 +115,7 @@ void Framebuffer::bindTexture(const GLint _shaderID, const std::string &_tex, co
 	GLint loc = glGetUniformLocation(_shaderID, _uniform);
 
 	if(loc == -1)
-			Utility::warning( "Uh oh! Invalid uniform location in Framebuffer::bindTexture!! " + std::string(_uniform) + '\n' );
+		Utility::warning( "Uh oh! Invalid uniform location in Framebuffer::bindTexture!! " + std::string(_uniform) + '\n' );
 
 	glUniform1i(loc, _target);
 
@@ -125,6 +141,24 @@ GLuint Framebuffer::genTexture(int _width, int _height, GLenum _format, GLint _i
 	glBindTexture(GL_TEXTURE_2D, tex);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, _internalFormat, _width, _height, 0, _format, _type, NULL);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	return tex;
+}
+
+GLuint Framebuffer::genTextureArray(
+		int _width,
+		int _height,
+		int _layers,
+		GLint _internalFormat)
+{
+	GLuint tex;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, tex);
+
+	glTexStorage3D(GL_TEXTURE_2D, _layers, _internalFormat, _width, _height, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

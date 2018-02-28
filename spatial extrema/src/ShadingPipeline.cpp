@@ -41,6 +41,11 @@ void ShadingPipeline::execute()
 		stage.m_output->bind();
 		stage.m_output->activeColourAttachments( stage.m_attachments );
 
+		for( auto &buffer : stage.m_dataBuffers )
+		{
+			buffer.bind( slib->getProgramID( stage.m_shader ) );
+		}
+
 		//Do I need to clear?
 		glClearColor(0.0,0.0,0.0,1.0);
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );

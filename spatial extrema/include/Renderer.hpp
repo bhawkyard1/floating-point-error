@@ -22,12 +22,17 @@ public:
 	~Renderer();
 
 	void createShader(const std::string _name, const std::string _vert, const std::string _frag, const std::string _geo = "", const std::string _tessctrl = "", const std::string _tesseval = "");
-	std::string loadShaderToString( const std::string &_path );
+	std::string loadShaderToString(const std::string &_path);
 
 	template<typename T>
 	void setCamera( T _cam )
 	{
 		m_cam = MemRef<Camera>( _cam );
+	}
+
+	void setLights( Slotmap<Light> * _lights )
+	{
+		m_lights = _lights;
 	}
 
 	//TODO delete
@@ -94,20 +99,17 @@ private:
 	std::unordered_map< std::string, ShadingPipeline > m_pipelines;
 
 	//Transformation data
-	struct ShadowData
-	{
-		//Data is stored per-light.
-		Framebuffer m_framebuffer;
-		std::vector< ngl::Mat4 > m_matrices;
-		void cleanup() {m_framebuffer.cleanup();}
-	};
-	int m_shadowCascades = 3;
-	std::vector< ShadowData > m_shadowData;
+	std::vector< ngl::Mat4 > m_shadowMatrices;
+	Framebuffer m_shadowBuffer;
+
 	ngl::Transformation m_transform;
 
 	//Lighting data.
 	GLuint m_lightBuffer;
+
+	size_t m_shadowCascades = 3;
 	size_t m_maxLights = 512;
+	size_t m_maxShadowSources = 16;
 };
 
 #endif

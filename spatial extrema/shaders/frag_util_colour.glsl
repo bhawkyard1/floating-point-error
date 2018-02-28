@@ -1,4 +1,4 @@
-#version 410 core
+#version 430 core
 
 //Writes out a single colour.
 
@@ -12,5 +12,5 @@ uniform vec4 u_colour;
 
 void main()
 {
-    fragColour = vec4(1.0,0.0,0.0,1.0);
+    fragColour = vec4(1.0,0.0,1.0,1.0);
 }
