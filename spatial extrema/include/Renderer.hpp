@@ -10,7 +10,6 @@
 #include "Camera.hpp"
 #include "Framebuffer.hpp"
 #include "PhysEnt.hpp"
-#include "ShadingPipeline.hpp"
 #include "Light.hpp"
 
 typedef std::pair<ngl::Vec3, ngl::Vec3> bounds;
@@ -28,6 +27,7 @@ public:
 	void setCamera( T _cam )
 	{
 		m_cam = MemRef<Camera>( _cam );
+		std::cout << "m_cam set, " << m_cam.get() << '\n';
 	}
 
 	void setLights( Slotmap<Light> * _lights )
@@ -43,6 +43,9 @@ public:
 	void update();
 
 	void shader( const std::string &_shader );
+
+	void framebuffer( const std::string &_buffer );
+
 	//Draws something into the current shading pipeline.
 	void draw(const std::string &_mesh,
 						const ngl::Vec3 &_pos = ngl::Vec3(0.0f, 0.0f, 0.0f),
@@ -93,10 +96,7 @@ private:
 	ngl::Vec2 m_dimensions;
 
 	//Framebuffers
-	Slotmap< Framebuffer > m_framebuffers;
-
-	//Shading pipelines.
-	std::unordered_map< std::string, ShadingPipeline > m_pipelines;
+	std::unordered_map< std::string, Framebuffer > m_framebuffers;
 
 	//Transformation data
 	std::vector< ngl::Mat4 > m_shadowMatrices;

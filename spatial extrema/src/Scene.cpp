@@ -29,20 +29,22 @@ Scene::Scene() :
 	m_cam.setFar( 1024.0f );
 	m_cam.clearTransforms();
 	m_cam.calculate();
+	m_renderer.setCamera( &m_cam );
 
 	Light light(
 				addEnt(),
 				ngl::Vec3( 1.0f, 1.0f, 1.0f ),
-				1.0f,
+				1024.0f,
 				LIGHT_DIRECTIONAL,
-				true
+				false
 				);
+	light.m_base->setPos( ngl::Vec3( 5.0f, 5.0f, 0.0f ) );
 	m_lights.push_back( light );
 }
 
 void Scene::draw(const float _dt)
 {
-	m_renderer.shadingPipeline( "deferred" );
+	m_renderer.framebuffer( "deferred" );
 	m_renderer.clear();
 	m_renderer.shader( "deferred_pass" );
 	m_renderer.draw( "sphere", ngl::Vec3(0,0,0), ngl::Vec3(0,0,0), true );

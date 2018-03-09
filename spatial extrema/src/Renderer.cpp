@@ -55,7 +55,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	ngl::NGLInit::instance();
 
 	//Enables and disabled.
-	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LESS );
 
@@ -106,16 +106,13 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		ngl::Vec2( 1.0f, 1.0f )
 	};
 	m_screenQuadVAO = createVAO(screenQuadPoints, screenQuadUVs);
-	ShadingPipeline::setScreenQuad( m_screenQuadVAO );
 
 	std::cout << "Generating light data...\n";
 	//Setup lighting buffers
 	m_renderLights.assign( m_maxLights, RenderLight() );
 	glGenBuffers( 1, &m_lightBuffer );
 	glBindBuffer( GL_UNIFORM_BUFFER, m_lightBuffer );
-	std::cout << "p1\n";
 	glBufferData( GL_UNIFORM_BUFFER, sizeof( RenderLight ) * m_maxLights, &m_renderLights[0], GL_DYNAMIC_DRAW );
-	std::cout << "p2\n";
 	glBindBuffer( GL_UNIFORM_BUFFER, 0 );
 
 	int NUM_CASCADES_WHERE = 3;
@@ -138,8 +135,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
 	gBuffer.unbind();
 
-	m_framebuffers.push_back( gBuffer );
-	MemRef< Framebuffer > dataInputRef ( m_framebuffers.backID() );
+	m_framebuffers["deferred"] = gBuffer;
 
 	Framebuffer compositeBuffer;
 	compositeBuffer.init(
@@ -153,35 +149,7 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 		Utility::errorExit("Uh oh! Framebuffer incomplete! Error code " + glGetError() + '\n');
 	compositeBuffer.unbind();
 
-	m_framebuffers.push_back( compositeBuffer );
-	MemRef< Framebuffer > compositeRef ( m_framebuffers.backID() );
-
-	//The stages in our deferred pipeline
-	std::vector< ShadingStage > deferredStages;
-
-	//The inputs for the first stage.
-	std::vector< ShadingInput > lightingInputs;
-	ShadingInput a ( dataInputRef );
-	a.m_links.push_back( {"diffuse", "u_diffuse"} );
-	a.m_links.push_back( {"position", "u_position"} );
-	a.m_links.push_back( {"normal", "u_normal"} );
-	a.m_links.push_back( {"linearDepth", "u_linearDepth"} );
-
-	lightingInputs.push_back( a );
-
-	//The first stage.
-	ShadingStage lighting( lightingInputs, compositeRef );
-	lighting.m_attachments = {GL_COLOR_ATTACHMENT0};
-	lighting.m_shader = "deferred_light";
-	lighting.m_dataBuffers.push_back(
-				UniformBuffer( m_lightBuffer, "lbuf" )
-				);
-
-	deferredStages.push_back( lighting );
-
-	ShadingPipeline deferred ( dataInputRef, deferredStages );
-
-	m_pipelines.insert( {"deferred", deferred} );
+	m_framebuffers["composite"] = compositeBuffer;
 
 	//Generate the shadowbuffer. This is a single framebuffer with an array texture.
 	//As opposed to my initial idea, vector of buffers
@@ -196,8 +164,8 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 Renderer::~Renderer()
 {
-	for( auto &buf : m_framebuffers.m_objects )
-		buf.cleanup();
+	for( auto &buf : m_framebuffers )
+		buf.second.cleanup();
 
 	m_shadowBuffer.cleanup();
 }
@@ -292,31 +260,37 @@ void Renderer::shader(const std::string &_shader)
 	slib->use( _shader );
 }
 
+void Renderer::framebuffer(const std::string &_buffer)
+{
+	if( _buffer == "main" )
+	{
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		return;
+	}
+
+	if(m_framebuffers.find( _buffer ) == m_framebuffers.end())
+		Utility::errorExit( "Trying to bind framebuffer " + _buffer + ", which doesn't exist!" );
+	m_framebuffers[_buffer].bind();
+	m_framebuffers[_buffer].activeColourAttachments();
+}
+
 void Renderer::update()
 {
-	std::cout << "Renderer::update 1\n";
 	m_renderLights.clear();
-	std::cout << "Renderer::update 1.1\n";
 	for( auto &light : m_lights->m_objects )
+	{
 		m_renderLights.push_back( light.getRenderData() );
-	std::cout << "Renderer::update 1.2\n";
+	}
 	if( m_renderLights.size() > 0 )
 	{
-		std::cout << "Renderer::update 1.3\n";
 		glBindBuffer(GL_UNIFORM_BUFFER, m_lightBuffer);
-		std::cout << "Renderer::update 1.31\n";
 		GLvoid * dat = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-		std::cout << "Renderer::update 1.32 dat ptr is null? " << (dat==nullptr) << "\n";
+		std::cout << "size " << sizeof(RenderLight) << '\n';
 		memcpy(dat, &m_renderLights[0], sizeof(RenderLight) * std::min( m_renderLights.size(), static_cast<size_t>(m_maxLights)));
-		std::cout << "Renderer::update 1.33\n";
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
-		std::cout << "Renderer::update 1.3\n";
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		std::cout << "Renderer::update 1.4\n";
 	}
-	std::cout << "Renderer::update 2\n";
 	generateShadowData({0.01f, 16.0f, 64.0f, 1024.0f});
-	std::cout << "Renderer::update 3\n";
 }
 
 void Renderer::draw(
@@ -330,17 +304,13 @@ void Renderer::draw(
 	m_transform.reset();
 	m_transform.setPosition( _pos );
 	m_transform.setRotation( _rot );
-
 	ngl::Obj * mesh = s_assetStore.getModel( _mesh );
 	if( mesh == nullptr )
 		Utility::errorExit( "Error! Mesh " + _mesh + " does not exist!" );
-
 	loadMatricesToShader();
 	mesh->draw();
-
 	if( !_shadows )
 		return;
-
 	//Draw mesh into shadow buffers.
 	m_transform.reset();
 
@@ -367,16 +337,29 @@ void Renderer::draw(
 
 void Renderer::render()
 {
-	for(auto &i : m_pipelines)
-		i.second.execute();
+	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
+	const std::string sname = "deferred_light";
+	GLint sid = slib->getProgramID( sname );
 
-	for(auto &i : m_pipelines)
-		i.second.dump();
-}
+	slib->use( sname );
 
-void Renderer::shadingPipeline(const std::string &_pipe)
-{
-	m_pipelines.at( _pipe ).bindInput();
+	m_framebuffers["deferred"].bindTexture( sid, "diffuse", "u_diffuse", 0 );
+	m_framebuffers["deferred"].bindTexture( sid, "position", "u_position", 1 );
+	m_framebuffers["deferred"].bindTexture( sid, "normal", "u_normal", 2 );
+	m_framebuffers["deferred"].bindTexture( sid, "linearDepth", "u_linearDepth", 3 );
+
+	GLuint lightBlockIndex = glGetUniformBlockIndex( sid, "u_lbuf" );
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_lightBuffer);
+	glUniformBlockBinding(sid, lightBlockIndex, 1);
+
+	slib->setRegisteredUniform("u_lbufLen", static_cast<int>(std::min(m_maxLights, m_renderLights.size())));
+	std::cout << static_cast<int>(std::min(m_maxLights, m_renderLights.size())) << '\n';
+	framebuffer( "main" );
+	clear();
+
+	glBindVertexArray( m_screenQuadVAO );
+	loadMatricesToShader( ngl::Mat4(), ngl::Mat4() );
+	glDrawArraysEXT( GL_TRIANGLE_STRIP, 0, 4 );
 }
 
 void Renderer::clear()
@@ -528,7 +511,6 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 	if( _segDepths.size() == 0 )
 		return;
 
-	std::cout << "Renderer::generateShadowData 1\n";
 	//Get the coordinates of each camera cascade, in world space.
 	using Cascade = std::array< ngl::Vec4, 8 >;
 	std::vector< Cascade > cascades;
@@ -540,7 +522,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 				);
 		cascades.push_back( c );
 	}
-	std::cout << "Renderer::generateShadowData 2\n";
+
 	//Cast the vertices of the camera frustrum into light space.
 	int shadowDataIndex = 0;
 	for( auto &light : m_lights->m_objects )
@@ -585,7 +567,6 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 			lightSpaceCascades.push_back( cL );
 		}
 
-		std::cout << "Renderer::generateShadowData 3\n";
 		using Bounds = std::pair< ngl::Vec3, ngl::Vec3 >;
 		for( auto cL : lightSpaceCascades )
 		{
@@ -608,9 +589,7 @@ void Renderer::generateShadowData(const std::vector<float> &_segDepths)
 
 			m_shadowMatrices[ shadowDataIndex ] = project * view;
 		}
-		std::cout << "Renderer::generateShadowData 3.1\n";
 	}
-	std::cout << "Renderer::generateShadowData 4\n";
 	shadowDataIndex++;
 }
 
@@ -625,6 +604,7 @@ void Renderer::loadMatricesToShader()
 {
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
 	ngl::Mat4 M = m_transform.getMatrix();
+	std::cout << "lmts " << m_cam.get() << "\n";
 	ngl::Mat4 MVP = M * m_cam->getVP();
 
 	slib->setRegisteredUniform( "M", M );
@@ -642,7 +622,7 @@ void Renderer::debug()
 	ref->bind();
 	ref->activeColourAttachments( );
 	//glBindFramebuffer( GL_FRAMEBUFFER, 0 );
-	glClearColor(1.0f,0.0f,1.0f,1.0f);
+	glClearColor(0.0f,0.0f,0.0f,1.0f);
 	clear();
 	draw( "sphere" );
 	//swap();

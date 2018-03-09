@@ -34,7 +34,6 @@ void Camera::calculateV()
 
 		ngl::Vec3 up = ngl::Vec3( 0.0f, 1.0f, 0.0f );
 		PhysEnt b =* m_base.get();
-		std::cout << b.back().m_x << '\n';
 		if( !m_base.isNull() )
 			up = m_base->up();
 

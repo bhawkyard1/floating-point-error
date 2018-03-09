@@ -20,7 +20,6 @@ uniform sampler2D u_normal;
 uniform sampler2D u_position;
 uniform sampler3D u_shadowDepths;
 uniform sampler2D u_linearDepth;
-uniform sampler2D u_rayDir;
 
 layout (location = 0) out vec4 fragColour;
 
@@ -44,11 +43,6 @@ uniform vec4 u_camPos;
 
 //UVs per-pixel
 uniform vec2 u_pixstep;
-
-vec3 getEyeRay()
-{
-    return texture( u_rayDir, UV ).xyz;
-}
 
 float shadowSample(float depth, vec2 smpl, ivec2 offset, int index)
 {
@@ -75,7 +69,7 @@ vec3 basicLight(vec4 fragPos, vec3 fragNormal, int lightIndex)
     vec3 base = u_lbuf.buf[ lightIndex ].col.xyz;
     d = distance(lp, fragPos);
     d *= d;
-    return (mul * u_lbuf.buf[ lightIndex ].col.a * base) / (1.0 + d);
+    return vec3(mul);//(mul * u_lbuf.buf[ lightIndex ].col.a * base) / (1.0 + d);
 }
 
 void main()
@@ -85,6 +79,8 @@ void main()
     vec3 fragNorm = texture(u_normal, UV).xyz;
     float fragDepth = texture(u_linearDepth, UV).r;
 
+    fragColour.xyz = fragNorm.xyz;
+
 #if shadowbuffer == 0
     if(fragColour.a == 0.0)
         discard;
@@ -93,9 +89,9 @@ void main()
     //Lights
     for(int i = 0; i < u_lbufLen; ++i)
     {
-        fragColour.xyz += basicLight(fragPos, fragNorm, i);
+        fragColour.xyz = basicLight(fragPos, fragNorm, i);
     }
-    fragColour.xyz = fragNorm;
+    fragColour.xyz = vec3( u_lbuf.buf[0].col.rgb );
     /*
         int cascadeIndex = -1;
 
