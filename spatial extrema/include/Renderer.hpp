@@ -27,7 +27,6 @@ public:
 	void setCamera( T _cam )
 	{
 		m_cam = MemRef<Camera>( _cam );
-		std::cout << "m_cam set, " << m_cam.get() << '\n';
 	}
 
 	void setLights( Slotmap<Light> * _lights )
@@ -47,10 +46,22 @@ public:
 	void framebuffer( const std::string &_buffer );
 
 	//Draws something into the current shading pipeline.
-	void draw(const std::string &_mesh,
-						const ngl::Vec3 &_pos = ngl::Vec3(0.0f, 0.0f, 0.0f),
-						const ngl::Vec3 &_rot = ngl::Vec3(0.0f, 0.0f, 0.0f),
-						const bool _shadows = false);
+	void draw(
+			const std::string &_mesh,
+			const ngl::Vec3 &_pos = ngl::Vec3(0.0f, 0.0f, 0.0f),
+			const ngl::Vec3 &_rot = ngl::Vec3(0.0f, 0.0f, 0.0f),
+			const bool _shadows = false
+			);
+	void draw(
+			const std::string &_mesh,
+			const ngl::Mat4 &_transform,
+			const bool _shadows = false
+			);
+	void drawMesh(
+			const std::string &_mesh,
+			const bool _shadows = false
+			);
+
 	//Runs a shading pipeline and outputs an image.
 	void render();
 

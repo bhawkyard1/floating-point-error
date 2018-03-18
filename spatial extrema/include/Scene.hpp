@@ -22,10 +22,12 @@ public:
 	bool done() const {return false;}
 
 	MemRef<PhysEnt> addEnt();
+	MemRef<RenderEnt> addRenderEnt();
 private:
 	Renderer m_renderer;
 	Camera m_cam;
 	Slotmap< PhysEnt > m_ents;
+	Slotmap< RenderEnt > m_rents;
 	Slotmap< Light > m_lights;
 };
 

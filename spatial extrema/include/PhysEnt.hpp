@@ -5,6 +5,9 @@
 
 #include <ngl/Vec3.h>
 
+#include "MemRef.hpp"
+#include "RenderEnt.hpp"
+
 class PhysEnt
 {
 public:
@@ -37,12 +40,18 @@ public:
 	ngl::Vec3 back() const {return -forward();}
 
 	void update(const float _dt);
+
+	void setRenderEnt( MemRef<RenderEnt> &_ent ) {m_renderEnt = _ent;}
+	void setParent( MemRef<PhysEnt> &_parent ) {m_parent = _parent;}
 private:
 	ngl::Vec3 m_pos;
 	ngl::Vec3 m_vel;
 
 	ngl::Vec3 m_rot;
 	ngl::Vec3 m_rotVel;
+
+	MemRef<PhysEnt> m_parent;
+	MemRef<RenderEnt> m_renderEnt;
 };
 
 #endif

@@ -113,7 +113,6 @@ void Framebuffer::bind( GLenum type )
 void Framebuffer::bindTexture(const GLint _shaderID, const std::string &_tex, const char *_uniform, int _target)
 {
 	GLint loc = glGetUniformLocation(_shaderID, _uniform);
-	std::cout << _uniform << ", " << loc << "\n";
 
 	if(loc == -1)
 		Utility::warning( "Uh oh! Invalid uniform location in Framebuffer::bindTexture!! " + std::string(_uniform) + '\n' );

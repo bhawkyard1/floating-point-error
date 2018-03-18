@@ -38,8 +38,8 @@ void Camera::calculateV()
 			up = m_base->up();
 
 		m_V = ngl::lookAt(
-								m_initPos,
-								m_initPivot,
+								m_base->getPos(),
+								m_base->getPos() + m_base->forward() * 10.0f,
 								up
 								);
 

@@ -1,5 +1,5 @@
 #Put assets you want to load in this file.
 #Format is <type> <path> <id>
 #Type is TEXTURE or MESH, path is the path, and id is the name to refer to it by in-code.
-#MESH meshes/david.obj david
+MESH meshes/david-high-orient.obj david
 MESH meshes/sphere.obj sphere

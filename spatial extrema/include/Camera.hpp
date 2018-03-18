@@ -64,6 +64,8 @@ public:
 	ngl::Vec3 up() {return m_base->up();}
 	ngl::Vec3 right() {return m_base->right();}
 
+	MemRef< PhysEnt > getBase() {return m_base;}
+
 	void setNear(const float _near) {m_near = _near;}
 	void setFar(const float _far) {m_far = _far;}
 	float getNear() const {return m_near;}

@@ -27,6 +27,7 @@ struct RenderLight
 	ngl::Vec4 m_dir;
 	ngl::Vec4 m_col;
 	int m_type;
+	char m_padding[12];
 };
 
 struct Light

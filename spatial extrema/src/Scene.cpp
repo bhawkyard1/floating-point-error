@@ -31,15 +31,47 @@ Scene::Scene() :
 	m_cam.calculate();
 	m_renderer.setCamera( &m_cam );
 
-	Light light(
+	float SPEED = 10000.0f;
+
+	Light light1(
 				addEnt(),
-				ngl::Vec3( 1.0f, 1.0f, 1.0f ),
-				1024.0f,
+				ngl::Vec3( 1.0f, 0.0f, 0.0f ),
+				32.0f,
 				LIGHT_DIRECTIONAL,
 				false
 				);
-	light.m_base->setPos( ngl::Vec3( 5.0f, 5.0f, 0.0f ) );
-	m_lights.push_back( light );
+	light1.m_base->setParent( m_cam.getBase() );
+	m_lights.push_back( light1 );
+
+	Light light2(
+				addEnt(),
+				ngl::Vec3( 0.0f, 1.0f, 0.0f ),
+				32.0f,
+				LIGHT_DIRECTIONAL,
+				false
+				);
+	light2.m_base->setParent( m_cam.getBase() );
+	m_lights.push_back( light2 );
+
+	Light light3(
+				addEnt(),
+				ngl::Vec3( 0.0f, 0.0f, 1.0f ),
+				32.0f,
+				LIGHT_DIRECTIONAL,
+				false
+				);
+	light3.m_base->setParent( m_cam.getBase() );
+	m_lights.push_back( light3 );
+
+	m_cam.getBase()->setPos(ngl::Vec3(0.0f, 0.0f, 510.0f));
+	m_cam.getBase()->setVel(ngl::Vec3(0.0f, 0.0f, SPEED));
+
+	MemRef<RenderEnt> model = addRenderEnt();
+	model->setModel( "david" );
+	MemRef<PhysEnt> modelPhysical = addEnt();
+	modelPhysical->setRenderEnt( model );
+	modelPhysical->setVel(ngl::Vec3(0.0f, 0.0f, SPEED));
+	modelPhysical->setRotVel(ngl::Vec3(0.0f, 0.1f, 0.05f));
 }
 
 void Scene::draw(const float _dt)
@@ -47,7 +79,14 @@ void Scene::draw(const float _dt)
 	m_renderer.framebuffer( "deferred" );
 	m_renderer.clear();
 	m_renderer.shader( "deferred_pass" );
-	m_renderer.draw( "sphere", ngl::Vec3(0,0,0), ngl::Vec3(0,0,0), true );
+	//m_renderer.draw( "david", ngl::Vec3(0,0,0), ngl::Vec3(0,0,0), true );
+
+	for(auto &i : m_rents.m_objects)
+	{
+		if(i.getShader() != "")
+			m_renderer.shader( i.getShader() );
+		m_renderer.draw( i.getModel(), i.getTransform(), false );
+	}
 
 	m_renderer.render();
 	m_renderer.swap();
@@ -61,11 +100,22 @@ void Scene::update(const float _dt)
 	m_renderer.setCamera( &m_cam );
 	m_renderer.setLights( &m_lights );
 	m_renderer.update();
+
+	std::cout << m_cam.getBase()->getPos() << '\n';
+
+	for( auto &i : m_ents.m_objects )
+		i.update( _dt );
 }
 
 MemRef<PhysEnt> Scene::addEnt()
 {
 	m_ents.push_back( PhysEnt() );
 	return MemRef<PhysEnt>( m_ents.backID() );
+}
+
+MemRef<RenderEnt> Scene::addRenderEnt()
+{
+	m_rents.push_back( RenderEnt() );
+	return MemRef<RenderEnt>( m_rents.backID() );
 }
 

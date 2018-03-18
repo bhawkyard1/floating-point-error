@@ -59,39 +59,6 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LESS );
 
-	//Load shaders
-	std::vector< std::string > shaders = File::getLinesFromFile( "config/shader-config.rcfg" );
-	for( auto &i : shaders )
-	{
-		if(i.length() == 0 or (i.length() > 0 and i[0] == '#'))
-			continue;
-		int arglen = 6;
-		std::vector< std::string > dat (arglen, "");
-		int cnt = 0;
-		for( auto &j : Utility::split( i, ' ' ) )
-		{
-			dat[cnt] = j;
-			cnt++;
-		}
-		createShader( dat[0], dat[1], dat[2], dat[3], dat[4], dat[5] );
-	}
-
-	//Load assets.
-	std::vector< std::string > assets = File::getLinesFromFile( "config/asset-config.rcfg" );
-	for( auto &i : assets )
-	{
-		if(i.length() == 0 or i.length() > 0 and i[0] == '#')
-			continue;
-
-		std::vector< std::string > data = Utility::split( i, ' ' );
-
-		if(data.size() != 3)
-			Utility::errorExit( "Error! Invalid asset string, " + i );
-
-		if( data[0] == "MESH" ) s_assetStore.loadMesh( data[2], data[1] );
-		else if( data[0] == "TEXTURE" ) s_assetStore.loadTexture( data[2], data[1] );
-	}
-
 	std::cout << "Creating screen squad mesh...\n";
 	std::vector<ngl::Vec4> screenQuadPoints = {
 		ngl::Vec4( -1.0f, -1.0f, 0.0f, 1.0f ),
@@ -109,10 +76,10 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 
 	std::cout << "Generating light data...\n";
 	//Setup lighting buffers
-	m_renderLights.assign( m_maxLights, RenderLight() );
+	m_renderLights.reserve( m_maxLights );
 	glGenBuffers( 1, &m_lightBuffer );
 	glBindBuffer( GL_UNIFORM_BUFFER, m_lightBuffer );
-	glBufferData( GL_UNIFORM_BUFFER, sizeof( RenderLight ) * m_maxLights, &m_renderLights[0], GL_DYNAMIC_DRAW );
+	glBufferData( GL_UNIFORM_BUFFER, sizeof( RenderLight ) * m_maxLights, NULL, GL_DYNAMIC_DRAW );
 	glBindBuffer( GL_UNIFORM_BUFFER, 0 );
 
 	int NUM_CASCADES_WHERE = 3;
@@ -158,6 +125,41 @@ Renderer::Renderer( const ngl::Vec2 _dimensions )
 				m_dimensions.m_y
 				);
 	m_shadowBuffer.addTextureArray( "depths", GL_RED, GL_COLOR_ATTACHMENT0, 3 );
+
+	//Load shaders
+	std::vector< std::string > shaders = File::getLinesFromFile( "config/shader-config.rcfg" );
+	for( auto &i : shaders )
+	{
+		if(i.length() == 0 or (i.length() > 0 and i[0] == '#'))
+			continue;
+		int arglen = 6;
+		std::vector< std::string > dat (arglen, "");
+		int cnt = 0;
+		for( auto &j : Utility::split( i, ' ' ) )
+		{
+			dat[cnt] = j;
+			cnt++;
+		}
+		createShader( dat[0], dat[1], dat[2], dat[3], dat[4], dat[5] );
+	}
+
+	//Load assets.
+	std::vector< std::string > assets = File::getLinesFromFile( "config/asset-config.rcfg" );
+	for( auto &i : assets )
+	{
+		if(i.length() == 0 or i.length() > 0 and i[0] == '#')
+			continue;
+
+		std::vector< std::string > data = Utility::split( i, ' ' );
+
+		if(data.size() != 3)
+			Utility::errorExit( "Error! Invalid asset string, " + i );
+
+		if( data[0] == "MESH" ) s_assetStore.loadMesh( data[2], data[1] );
+		else if( data[0] == "TEXTURE" ) s_assetStore.loadTexture( data[2], data[1] );
+	}
+	/*std::cout << "Exiting, gl error: " << glGetError() << '\n';
+	Utility::errorExit( "" );*/
 
 	std::cout << "Renderer construction completed.\n";
 }
@@ -285,8 +287,7 @@ void Renderer::update()
 	{
 		glBindBuffer(GL_UNIFORM_BUFFER, m_lightBuffer);
 		GLvoid * dat = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-		std::cout << "size " << sizeof(RenderLight) << '\n';
-		memcpy(dat, &m_renderLights[0], sizeof(RenderLight) * std::min( m_renderLights.size(), static_cast<size_t>(m_maxLights)));
+		memcpy(dat, &m_renderLights[0], sizeof( RenderLight ) * std::min( m_renderLights.size(), static_cast<size_t>(m_maxLights)));
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
@@ -304,6 +305,22 @@ void Renderer::draw(
 	m_transform.reset();
 	m_transform.setPosition( _pos );
 	m_transform.setRotation( _rot );
+	drawMesh( _mesh, _shadows );
+}
+
+void Renderer::draw(
+		const std::string &_mesh,
+		const ngl::Mat4 &_transform,
+		const bool _shadows
+		)
+{
+	m_transform.reset();
+	m_transform.setMatrix( _transform );
+	drawMesh( _mesh, _shadows );
+}
+
+void Renderer::drawMesh(const std::string &_mesh, const bool _shadows)
+{
 	ngl::Obj * mesh = s_assetStore.getModel( _mesh );
 	if( mesh == nullptr )
 		Utility::errorExit( "Error! Mesh " + _mesh + " does not exist!" );
@@ -348,12 +365,11 @@ void Renderer::render()
 	m_framebuffers["deferred"].bindTexture( sid, "normal", "u_normal", 2 );
 	m_framebuffers["deferred"].bindTexture( sid, "linearDepth", "u_linearDepth", 3 );
 
-	GLuint lightBlockIndex = glGetUniformBlockIndex( sid, "u_lbuf" );
+	GLuint lightBlockIndex = glGetUniformBlockIndex( sid, "lightBuffer" );
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_lightBuffer);
 	glUniformBlockBinding(sid, lightBlockIndex, 1);
 
 	slib->setRegisteredUniform("u_lbufLen", static_cast<int>(std::min(m_maxLights, m_renderLights.size())));
-	std::cout << static_cast<int>(std::min(m_maxLights, m_renderLights.size())) << '\n';
 	framebuffer( "main" );
 	clear();
 
@@ -604,7 +620,6 @@ void Renderer::loadMatricesToShader()
 {
 	ngl::ShaderLib * slib = ngl::ShaderLib::instance();
 	ngl::Mat4 M = m_transform.getMatrix();
-	std::cout << "lmts " << m_cam.get() << "\n";
 	ngl::Mat4 MVP = M * m_cam->getVP();
 
 	slib->setRegisteredUniform( "M", M );
